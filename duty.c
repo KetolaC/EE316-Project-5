@@ -97,7 +97,7 @@
 #define TMRCTR_1                1            /* Timer 1 ID */
 #define CYCLE_PER_DUTYCYCLE     10           /* Clock cycles per duty cycle */
 #define MAX_DUTYCYCLE           100          /* Max duty cycle */
-#define DUTYCYCLE_DIVISOR       4            /* Duty cycle Divisor */
+#define DUTYCYCLE_DIVISOR       8            /* Duty cycle Divisor */
 #define WAIT_COUNT              PWM_PERIOD   /* Interrupt wait counter */
 
 /**************************** Type Definitions *******************************/
@@ -140,7 +140,7 @@ static int   HighTimerHit = FALSE;
 #include "xil_types.h"
 //#include "debounce.h"
 
-#define RGBLED_BASEADDR 0x4121 //XPAR_PWM_0_PWM_AXI_BASEADDR
+#define RGBLED_BASEADDR 0x42800000U //XPAR_PWM_0_PWM_AXI_BASEADDR
 #define LED_ON_DUTY 0x3FFF
 #define LED_OFF_DUTY 0x3000
 #define XADC_DEVICE_ID XPAR_XADC_WIZ_0_DEVICE_ID
@@ -312,7 +312,7 @@ int TmrCtrPwmExample(INTC *IntcInstancePtr, XTmrCtr *TmrCtrInstancePtr,
 	Div = DUTYCYCLE_DIVISOR;
 
 	/* Configure PWM */
-	do {
+	//do {
 		/* Fail check for 0 divisor */
 		if (!Div) {
 			Status = XST_FAILURE;
@@ -325,7 +325,8 @@ int TmrCtrPwmExample(INTC *IntcInstancePtr, XTmrCtr *TmrCtrInstancePtr,
 		/* Configure PWM */
 		Period = PWM_PERIOD;
 		//HighTime = PWM_PERIOD / Div--;
-		HighTime = (1/2620)*(RawData);
+		xil_printf("High time test = %d\r\n", HighTime);
+		HighTime = ((72*RawData)-500000)+500000;
 		DutyCycle = XTmrCtr_PwmConfigure(TmrCtrInstancePtr, Period,
 				HighTime);
 		if (Status != XST_SUCCESS) {
@@ -367,7 +368,7 @@ int TmrCtrPwmExample(INTC *IntcInstancePtr, XTmrCtr *TmrCtrInstancePtr,
 				return XST_FAILURE;
 			}
 		}
-	} while (DutyCycle < MAX_DUTYCYCLE);
+	//} while (DutyCycle < MAX_DUTYCYCLE);
 
 	Status = XST_SUCCESS;
 	err:
@@ -668,7 +669,8 @@ void Xadc_Demo(XSysMon *InstancePtr, u32 RGBLED_BaseAddr, u32 ChannelSelect) {
 	u32 ChannelValidVector;
 	float Xadc_VoltageData;
 	ChannelValidVector = Xadc_ReadData(InstancePtr, Xadc_RawData);
-	if (Test_Bit(ChannelValidVector, ChannelSelect)) {
+	//if (Test_Bit(ChannelValidVector, ChannelSelect)) {
+	if (1) {
 		Xadc_VoltageData = Xadc_RawToVoltage(Xadc_RawData, ChannelSelect);
 		printf("Analog Input %s: %.3fV\r\n", Channel_Names[ChannelSelect], Xadc_VoltageData);
 		if (Xadc_VoltageData > 0.5)
