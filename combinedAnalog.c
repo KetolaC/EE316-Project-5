@@ -192,7 +192,7 @@ const char *Channel_Names[32] = {
 
 #endif /* TESTAPP_GEN */
 
-#define INTR_DELAY	0x000000FF
+#define INTR_DELAY	0x0000000F
 
 #ifdef XPAR_INTC_0_DEVICE_ID
  #define INTC_DEVICE_ID	XPAR_INTC_0_DEVICE_ID
@@ -203,6 +203,11 @@ const char *Channel_Names[32] = {
  #define INTC		XScuGic
  #define INTC_HANDLER	XScuGic_InterruptHandler
 #endif /* XPAR_INTC_0_DEVICE_ID */
+
+
+#define RS 1    /* BIT0 mask */
+#define RW 2    /* BIT1 mask */
+#define EN 4    /* BIT2 mask */
 
 /**************************** Type Definitions *******************************/
 
@@ -232,6 +237,13 @@ void GpioDisableIntr(INTC *IntcInstancePtr, XGpio *InstancePtr,
 
 void runPWM(XSysMon *InstancePtr, u32 ChannelSelect);
 
+void delayMs(int n);
+void delayUs(int n);
+void LCD_nibble_write(unsigned char data, unsigned char control);
+void LCD_command(unsigned char command);
+void LCD_data(unsigned char data);
+void LCD_init(void);
+
 /************************** Variables ******************************/
 INTC InterruptController;  /* The instance of the Interrupt Controller */
 XTmrCtr TimerCounterInst;  /* The instance of the Timer Counter */
@@ -259,10 +271,13 @@ u8 DutyCycleOld;
 int en;
 int pMax = 999999;
 int adcSelect;
+int LCDen;
 
 int main(void)
 {
 	Btn = 1; // reset system
+	en = 1;
+
 	PWM_Set_Duty(MY_PWM, 0, 0); //Initialize both the PWM channels to 0
 	PWM_Set_Duty(MY_PWM, 0, 1);
 	begin();
@@ -293,19 +308,30 @@ int begin(void) {
 		if(Btn == 1) {
 			adcSelect = 17;//set channel to 17
 			printf("Cora Demo Initialized!\r\n");
-			usleep(500000);
+			LCDen = 1;
+			LCD_init();
+			Reset();
+			usleep(2000000);
 			Btn = 2;
 			begin();
 		}
 		// select between axi timer and pwm
 		else if(Btn == 2 ){
+			//if(DataRead != 0) {
+				//En_Den();
+			//}
+
 			if (adcSelect == 17){
 				Xadc_Demo(&Xadc, Channel_List[ChannelIndex]); //select buzzer and LEDS
 			}
 			else {
 				runPWM(&Xadc, Channel_List[ChannelIndex]); //select DC motor and servo
 			}
+			if(LCDen==1) {
+				En_Den();
 
+			}
+			LCDen = 0;
 			usleep(1);
 
 		}
@@ -314,10 +340,12 @@ int begin(void) {
 			xil_printf("Disabled \r\n");
 			usleep(500000);
 			en = 0;
+			En_Den();
 			while(en == 0) {
 				buttonInterrupt();
 			}
 			en = 1;
+			LCDen = 1;
 			xil_printf("Enabled \r\n");
 			usleep(500000);
 			Btn = 2;
@@ -350,9 +378,11 @@ int buttonInterrupt(void) {
 			else if (DataRead == 2){
 				if(adcSelect == 17){
 					adcSelect = 25;
+					LCDen = 1;
 				}
 				else if(adcSelect == 25) {
 					adcSelect = 17;
+					LCDen = 1;
 				}
 				usleep(500000);
 				//printf("adcSelect value %i\r\n", adcSelect);
@@ -1031,4 +1061,158 @@ void GpioDisableIntr(INTC *IntcInstancePtr, XGpio *InstancePtr,
 	XScuGic_Disconnect(IntcInstancePtr, IntrId);
 #endif
 	return;
+}
+
+void En_Den(void)
+{
+    //for(;;) {
+	if(en == 1)
+    {
+        LCD_command(1);         /* clear display */
+        delayMs(500);
+        LCD_command(0x85);      /* set cursor at first line */
+        LCD_data('E');          /* write the word */
+        LCD_data('n');
+        LCD_data('a');
+        LCD_data('b');
+        LCD_data('l');
+        LCD_data('e');
+        LCD_data('d');
+        delayMs(500);
+
+        if(adcSelect == 25) {
+            //LCD_command(1);         /* clear display */
+            delayMs(500);
+            LCD_command(0xC0);      /* set cursor at second line */
+            LCD_data('P');          /* write the word */
+            LCD_data('o');
+            LCD_data('t');
+            LCD_data('e');
+            LCD_data('n');
+            LCD_data('t');
+            LCD_data('i');
+            LCD_data('o');
+            LCD_data('m');
+            LCD_data('e');
+            LCD_data('t');
+            LCD_data('e');
+            LCD_data('r');
+            delayMs(500);
+        }
+        else if(adcSelect == 17) {
+            //LCD_command(1);         /* clear display */
+            delayMs(500);
+            LCD_command(0xC0);      /* set cursor at second line */
+            LCD_data('P');          /* write the word */
+            LCD_data('h');
+            LCD_data('o');
+            LCD_data('t');
+            LCD_data('o');
+            LCD_data('r');
+            LCD_data('e');
+            LCD_data('s');
+            LCD_data('i');
+            LCD_data('s');
+            LCD_data('t');
+            LCD_data('o');
+            LCD_data('r');
+            delayMs(500);
+        }
+    }
+	else if (en ==0)
+	{
+        LCD_command(1);         /* clear display */
+        delayMs(500);
+        LCD_command(0x85);      /* set cursor at first line */
+        LCD_data('D');          /* write the word */
+        LCD_data('i');
+        LCD_data('s');
+        LCD_data('a');
+        LCD_data('b');
+        LCD_data('l');
+        LCD_data('e');
+        LCD_data('d');
+        delayMs(500);
+	}
+    //}
+}
+
+void Reset(void)
+{
+    LCD_command(1);         /* clear display */
+    delayMs(500);
+    LCD_command(0x85);      /* set cursor at first line */
+    LCD_data('R');          /* write the word */
+    LCD_data('e');
+    LCD_data('s');
+    LCD_data('e');
+    LCD_data('t');
+    delayMs(500);
+}
+
+void LCD_init(void)
+{
+
+    delayMs(30);                /* initialization sequence */
+    LCD_nibble_write(0x30, 0);
+    delayMs(10);
+    LCD_nibble_write(0x30, 0);
+    delayMs(1);
+    LCD_nibble_write(0x30, 0);
+    delayMs(1);
+    LCD_nibble_write(0x20, 0);  /* use 4-bit data mode */
+    delayMs(1);
+
+    LCD_command(0x28);          /* set 4-bit data, 2-line, 5x7 font */
+    LCD_command(0x06);          /* move cursor right */
+    LCD_command(0x01);          /* clear screen, move cursor to home */
+    LCD_command(0x0F);          /* turn on display, cursor blinking */
+}
+
+void LCD_nibble_write(unsigned char data, unsigned char control)
+{
+    data &= 0xF0;       /* clear lower nibble for control */
+    control &= 0x0F;    /* clear upper nibble for data */
+    //PTD->PDOR = data | control;       /* RS = 0, R/W = 0 */ //replace with Xil_Out8(UINTPTR Addr, u8 Value)
+    //PTD->PDOR = data | control | EN;  /* pulse E */
+    //Xil_Out8(0x41200000, data | control);
+    //Xil_Out8(0x41200000, data | control | EN);
+    XGpio_WriteReg(XPAR_AXI_GPIO_1_BASEADDR, 0, data | control);
+    XGpio_WriteReg(XPAR_AXI_GPIO_1_BASEADDR, 0, data | control | EN);
+    delayMs(0);
+    //PTD->PDOR = data;
+    //PTD->PDOR = 0;
+    //Xil_Out8(0x41200000, data);
+    //Xil_Out8(0x41200000, 0);
+    XGpio_WriteReg(XPAR_AXI_GPIO_1_BASEADDR, 0, data);
+    XGpio_WriteReg(XPAR_AXI_GPIO_1_BASEADDR, 0, 0);
+}
+
+void LCD_command(unsigned char command)
+{
+    LCD_nibble_write(command & 0xF0, 0);   /* upper nibble first */
+    LCD_nibble_write(command << 4, 0);     /* then lower nibble */
+
+    if (command < 4)
+        delayMs(4);         /* commands 1 and 2 need up to 1.64ms */
+    else
+        delayMs(1);         /* all others 40 us */
+}
+
+void LCD_data(unsigned char data)
+{
+    LCD_nibble_write(data & 0xF0, RS);    /* upper nibble first */
+    LCD_nibble_write(data << 4, RS);      /* then lower nibble  */
+
+    delayMs(1);
+}
+
+/* Delay n milliseconds
+ * The CPU core clock is set to MCGFLLCLK at 41.94 MHz in SystemInit().
+ */
+void delayMs(int n) {
+    int i;
+    int j;
+    for(i = 0 ; i < n; i++)
+        for(j = 0 ; j < 5000; j++) { }
 }
